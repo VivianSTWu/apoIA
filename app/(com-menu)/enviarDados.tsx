@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { View, Button, Alert } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth } from '../../lib/firebase';
 import { useRouter } from 'expo-router';
 
 export default function EnviarDados() {

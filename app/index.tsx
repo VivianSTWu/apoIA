@@ -9,7 +9,7 @@ export default function Index() {
   const iniciar = () => {
     console.log('Nome do local:', nomeLocal);
     console.log('Capacidade máxima:', capacidade);
-    router.push('/cadastro-abrigado');
+    router.push('/(com-menu)/lista');
   };
 
   return (
@@ -27,7 +27,7 @@ export default function Index() {
       {/* Texto explicativo */}
       <Text style={styles.titulo}>Organize melhor. Cuide melhor.</Text>
       <Text style={styles.texto}>
-O apo.IA é seu aliado em situações de emergência, ajudando a cadastrar abrigados, identificar voluntários e priorizar quem precisa de mais atenção. De forma inteligente, rápida e organizada.
+        O apo.IA é seu aliado em situações de emergência, ajudando a cadastrar abrigados, identificar voluntários e priorizar quem precisa de mais atenção. De forma inteligente, rápida e organizada.
       </Text>
 
       {/* Formulário */}

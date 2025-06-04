@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, FlatList, TextInput, StyleSheet, Text } from 'react-native';
-import AbrigadoItem, { Abrigado } from '../components/AbrigadoItem';
+import AbrigadoItem, { Abrigado } from '../../components/AbrigadoItem';
 import { Checkbox } from 'react-native-paper';
 
 const abrigadosMock: Abrigado[] = [

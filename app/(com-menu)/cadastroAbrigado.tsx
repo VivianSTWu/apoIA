@@ -65,7 +65,7 @@ export default function CadastroAbrigado() {
       doencas: dadosDoencas
     });
 
-    router.push('/lista-abrigados'); // Redireciona para a lista de abrigados após o cadastro
+    router.push('/listaAbrigados'); // Redireciona para a lista de abrigados após o cadastro
   };
   
 

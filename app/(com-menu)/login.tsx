@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth } from '../../lib/firebase';
 import { router } from 'expo-router';
 
 export default function Login() {
@@ -11,7 +11,7 @@ export default function Login() {
   const fazerLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, email, senha);
-      router.replace('/enviar-dados');
+      router.replace('/enviarDados');
     } catch (error) {
       Alert.alert('Erro no login', 'Email ou senha incorretos');
     }
@@ -25,7 +25,7 @@ export default function Login() {
       <TextInput placeholder="Senha" secureTextEntry onChangeText={setSenha} value={senha} />
 
       <Button title="Entrar" onPress={fazerLogin} />
-      <Button title="Cadastrar" onPress={() => router.push('/cadastro')} />
+      <Button title="Cadastrar" onPress={() => router.push('/cadastroLogin')} />
     </View>
   );
 }
