@@ -1,28 +1,35 @@
+// app/(com-menu)/lista-abrigados.tsx
 import React, { useState } from 'react';
-import { View, FlatList, TextInput, StyleSheet, Text } from 'react-native';
-import AbrigadoItem, { Abrigado } from '../../components/AbrigadoItem';
+import { View, FlatList, TextInput, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Checkbox } from 'react-native-paper';
+import { useRouter } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import AbrigadoItem from '../../components/AbrigadoItem';
 
-const abrigadosMock: Abrigado[] = [
+const abrigadosMock = [
   {
+    id: '1',
     nome: 'João Silva',
-    ferimento: 'Muito Graves',
-    condicoes: ['Hipertensão', 'Diabetes'],
+    ferimentos: 'Muito Graves',
+    doencas: { hipertensao: true, diabetes: true },
   },
   {
+    id: '2',
     nome: 'Maria Oliveira',
-    ferimento: 'Leves',
-    condicoes: [],
+    ferimentos: 'Leves',
+    doencas: {},
   },
   {
+    id: '3',
     nome: 'Carlos Santos',
-    ferimento: 'Graves',
-    condicoes: ['Asma'],
+    ferimentos: 'Graves',
+    doencas: { respiratoria: true },
   },
   {
+    id: '4',
     nome: 'Ana Souza',
-    ferimento: 'Nenhum',
-    condicoes: ['Epilepsia'],
+    ferimentos: 'Nenhum',
+    doencas: { epilepsia: true },
   },
 ];
 
@@ -33,31 +40,38 @@ const prioridade = {
   Nenhum: 0,
 };
 
-const todasCondicoes = ['Diabetes', 'Epilepsia', 'Hipertensão', 'Asma'];
+const todasCondicoes = ['diabetes', 'epilepsia', 'hipertensao', 'respiratoria', 'cardiaca', 'mobilidade', 'mental', 'tea', 'hiv'];
 
 export default function ListaAbrigados() {
   const [busca, setBusca] = useState('');
   const [filtrosCondicoes, setFiltrosCondicoes] = useState<string[]>([]);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const router = useRouter();
 
   const toggleCondicao = (cond: string) => {
     setFiltrosCondicoes((prev) =>
-      prev.includes(cond)
-        ? prev.filter((c) => c !== cond)
-        : [...prev, cond]
+      prev.includes(cond) ? prev.filter((c) => c !== cond) : [...prev, cond]
     );
   };
 
   const filtrados = abrigadosMock.filter((a) => {
     const nomeMatch = a.nome.toLowerCase().includes(busca.toLowerCase());
+    const condicoesAtivas = a.doencas
+      ? Object.entries(a.doencas)
+          .filter(([k, v]) => k !== 'outraDescricao' && v)
+          .map(([k]) => k)
+      : [];
     const condicoesMatch =
       filtrosCondicoes.length === 0 ||
-      a.condicoes.some((c) => filtrosCondicoes.includes(c));
+      condicoesAtivas.some((c) => filtrosCondicoes.includes(c));
     return nomeMatch && condicoesMatch;
   });
 
-  const ordenados = filtrados.sort(
-    (a, b) => prioridade[b.ferimento] - prioridade[a.ferimento]
-  );
+  const ordenados = filtrados.sort((a, b) => {
+    const prioridadeA = prioridade[a.ferimentos || 'Nenhum'] || 0;
+    const prioridadeB = prioridade[b.ferimentos || 'Nenhum'] || 0;
+    return prioridadeB - prioridadeA;
+  });
 
   return (
     <View style={styles.container}>
@@ -68,20 +82,38 @@ export default function ListaAbrigados() {
         style={styles.input}
       />
 
-      <Text style={styles.subtitulo}>Filtrar por condições médicas:</Text>
-      {todasCondicoes.map((cond) => (
-        <Checkbox.Item
-          key={cond}
-          label={cond}
-          status={filtrosCondicoes.includes(cond) ? 'checked' : 'unchecked'}
-          onPress={() => toggleCondicao(cond)}
-        />
-      ))}
+      <TouchableOpacity style={styles.filtroBotao} onPress={() => setMostrarFiltros(!mostrarFiltros)}>
+        <MaterialIcons name="filter-list" size={20} color="#333" />
+        <Text style={styles.filtroTexto}>Filtros</Text>
+      </TouchableOpacity>
+
+      {mostrarFiltros && (
+        <>
+          <Text style={styles.subtitulo}>Filtrar por condições médicas:</Text>
+          {todasCondicoes.map((cond) => (
+            <Checkbox.Item
+              key={cond}
+              label={cond.charAt(0).toUpperCase() + cond.slice(1)}
+              status={filtrosCondicoes.includes(cond) ? 'checked' : 'unchecked'}
+              onPress={() => toggleCondicao(cond)}
+            />
+          ))}
+        </>
+      )}
 
       <FlatList
         data={ordenados}
-        keyExtractor={(_, index) => index.toString()}
-        renderItem={({ item }) => <AbrigadoItem abrigado={item} />}
+        renderItem={({ item }) => (
+          <AbrigadoItem abrigado={{
+            nome: item.nome,
+            ferimento: item.ferimentos,
+            condicoes: Object.entries(item.doencas || {})
+              .filter(([chave, valor]) => chave !== 'outraDescricao' && valor)
+              .map(([chave]) => chave),
+          }} />
+        )}
+        keyExtractor={(item) => item.id}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );
@@ -105,5 +137,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 10,
     marginBottom: 4,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#ddd',
+    marginVertical: 10,
+  },
+  filtroBotao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  filtroTexto: {
+    fontSize: 16,
   },
 });

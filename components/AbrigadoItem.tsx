@@ -14,7 +14,7 @@ export default function AbrigadoItem({ abrigado }: { abrigado: Abrigado }) {
   return (
     <Pressable onPress={() => {
       router.push({
-        pathname: '/abrigado-detalhe',
+        pathname: '/abrigadoDetalhe',
         params: {
           nome: abrigado.nome,
           ferimento: abrigado.ferimento,
@@ -24,7 +24,7 @@ export default function AbrigadoItem({ abrigado }: { abrigado: Abrigado }) {
     }}>
       <View style={{ padding: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
         <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{abrigado.nome}</Text>
-        <Text style={{ color: '#d00' }}>Ferimento: {abrigado.ferimento}</Text>
+        <Text style={{ color: '#d00' }}>Ferimentos: {abrigado.ferimento}</Text>
         {abrigado.condicoes.length > 0 ? (
           abrigado.condicoes.map((cond, idx) => <Text key={idx}>• {cond}</Text>)
         ) : (

@@ -1,54 +1,57 @@
-// app/abrigado-detalhe.tsx
+import React, { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, ScrollView, Switch } from 'react-native';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import AbrigadoForm from '../../components/AbrigadoForm';
 
 export default function AbrigadoDetalhe() {
-  const { nome, ferimento, condicoes } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [abrigado, setAbrigado] = useState<any | null>(null);
 
-  const [novoNome, setNovoNome] = useState(nome as string);
-  const [novoFerimento, setNovoFerimento] = useState(ferimento as string);
-  const [novoVoluntario, setNovoVoluntario] = useState(false);
-  const [habilidades, setHabilidades] = useState<string[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const docRef = doc(db, 'abrigados', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setAbrigado({ ...docSnap.data(), id: docSnap.id });
+      } else {
+        Alert.alert('Erro', 'Abrigado não encontrado.');
+        router.back();
+      }
+    };
+    fetchData();
+  }, [id]);
 
-  const toggleHabilidade = (habilidade: string) => {
-    setHabilidades(prev =>
-      prev.includes(habilidade) ? prev.filter(h => h !== habilidade) : [...prev, habilidade]
-    );
+  const handleSave = async (data: any) => {
+    try {
+      await updateDoc(doc(db, 'abrigados', id), data);
+      Alert.alert('Sucesso', 'Dados atualizados com sucesso.');
+      router.back();
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível atualizar os dados.');
+    }
   };
 
-  return (
-    <ScrollView contentContainerStyle={{ padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Detalhes do Abrigado</Text>
+  const handleDelete = () => {
+    Alert.alert('Confirmar Exclusão', 'Deseja excluir este abrigado?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir', style: 'destructive', onPress: async () => {
+          try {
+            await deleteDoc(doc(db, 'abrigados', id));
+            Alert.alert('Excluído', 'Abrigado removido com sucesso.');
+            router.back();
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível excluir.');
+          }
+        },
+      },
+    ]);
+  };
 
-      <Text>Nome:</Text>
-      <TextInput value={novoNome} onChangeText={setNovoNome} style={{ borderBottomWidth: 1 }} />
+  if (!abrigado) return null;
 
-      <Text style={{ marginTop: 10 }}>Ferimento:</Text>
-      <TextInput value={novoFerimento} onChangeText={setNovoFerimento} style={{ borderBottomWidth: 1 }} />
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}>
-        <Text>É voluntário?</Text>
-        <Switch value={novoVoluntario} onValueChange={setNovoVoluntario} />
-      </View>
-
-      {novoVoluntario && (
-        <View>
-          <Text>Habilidades:</Text>
-          {['Cozinhar', 'Cuidados Médicos', 'Organização'].map(h => (
-            <View key={h} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Switch value={habilidades.includes(h)} onValueChange={() => toggleHabilidade(h)} />
-              <Text>{h}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      <Button title="Salvar" onPress={() => {
-        // Enviar alterações para o backend, se existir
-        router.back();
-      }} />
-    </ScrollView>
-  );
+  return <AbrigadoForm initialData={abrigado} onSave={handleSave} onDelete={handleDelete} modo="edicao" />;
 }
