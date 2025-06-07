@@ -1,22 +1,46 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Image, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Button, Image, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { login, criarLocal } from '../services/api';
 
 export default function Index() {
   const [nomeLocal, setNomeLocal] = useState('');
   const [capacidade, setCapacidade] = useState('');
+  const [endereco, setEndereco] = useState('');
+  const [quantidadeAbrigados, setQuantidadeAbrigados] = useState('');
 
-  const iniciar = () => {
-    console.log('Nome do local:', nomeLocal);
-    console.log('Capacidade máxima:', capacidade);
-    router.push('/(com-menu)/lista');
+  const iniciar = async () => {
+    try {
+      console.log('[INICIAR] Fazendo login...');
+      await login(); // token salvo internamente
+      console.log('[INICIAR] Login realizado com sucesso.');
+
+      const dadosLocal = {
+        nome: nomeLocal,
+        capacidade: Number(capacidade),
+        endereco,
+        qtd_abrigados: Number(quantidadeAbrigados),
+      };
+
+      console.log('[INICIAR] Enviando para a API (criarLocal):', JSON.stringify(dadosLocal));
+
+      const local = await criarLocal(dadosLocal);
+      console.log('[INICIAR] Resposta da API (local):', local);
+
+      await AsyncStorage.setItem('localId', local.id);
+      console.log('[INICIAR] localId salvo no AsyncStorage:', local.id);
+
+      router.push('/(com-menu)/lista');
+    } catch (error) {
+      console.error('[ERRO] Falha ao cadastrar local:', error);
+      Alert.alert('Erro', 'Não foi possível cadastrar o local.');
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Espaço para o logo */}
       <View style={styles.logoContainer}>
-        {/* Substitua 'require' pelo caminho correto do logo */}
         <Image
           source={require('../assets/logo_apoIA.png')}
           style={styles.logo}
@@ -24,24 +48,34 @@ export default function Index() {
         />
       </View>
 
-      {/* Texto explicativo */}
       <Text style={styles.titulo}>Organize melhor. Cuide melhor.</Text>
       <Text style={styles.texto}>
-        O apo.IA é seu aliado em situações de emergência, ajudando a cadastrar abrigados, identificar voluntários e priorizar quem precisa de mais atenção. De forma inteligente, rápida e organizada.
+        O apo.IA é seu aliado em situações de emergência, ajudando a cadastrar abrigados, identificar voluntários e priorizar quem precisa de mais atenção.
       </Text>
 
-      {/* Formulário */}
       <TextInput
         placeholder="Nome do local"
         value={nomeLocal}
         onChangeText={setNomeLocal}
         style={styles.input}
       />
-
       <TextInput
         placeholder="Capacidade máxima"
         value={capacidade}
         onChangeText={setCapacidade}
+        keyboardType="numeric"
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Endereço"
+        value={endereco}
+        onChangeText={setEndereco}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Quantidade de abrigados"
+        value={quantidadeAbrigados}
+        onChangeText={setQuantidadeAbrigados}
         keyboardType="numeric"
         style={styles.input}
       />

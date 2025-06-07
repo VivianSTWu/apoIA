@@ -1,16 +1,25 @@
+// Este componente será usado para cadastro de novos abrigados com integração à API
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Checkbox } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { criarAbrigado, criarDoenca, login } from '../services/api';
 
 interface AbrigadoFormProps {
-  initialData?: any;
-  onSave: (data: any) => void;
-  onDelete?: () => void;
-  modo: 'cadastro' | 'edicao';
+  onSave: () => void;
+  modo: 'cadastro';
 }
 
-export default function AbrigadoForm({ initialData, onSave, onDelete, modo }: AbrigadoFormProps) {
+export default function AbrigadoForm({ onSave, modo }: AbrigadoFormProps) {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [idade, setIdade] = useState('');
@@ -19,10 +28,9 @@ export default function AbrigadoForm({ initialData, onSave, onDelete, modo }: Ab
   const [ferimentos, setFerimentos] = useState('Nenhum');
   const [querSerVoluntario, setQuerSerVoluntario] = useState(false);
   const [possuiCondicao, setPossuiCondicao] = useState(false);
-  const [outraCondicaoTexto, setOutraCondicaoTexto] = useState('');
-
   const [habilidades, setHabilidades] = useState<any>({});
   const [doencas, setDoencas] = useState<any>({});
+  const [outraCondicaoTexto, setOutraCondicaoTexto] = useState('');
 
   const toggleHabilidade = (key: string) => {
     setHabilidades((prev: any) => ({ ...prev, [key]: !prev[key] }));
@@ -33,56 +41,114 @@ export default function AbrigadoForm({ initialData, onSave, onDelete, modo }: Ab
   };
 
   useEffect(() => {
-    if (initialData) {
-      setNome(initialData.nome || '');
-      setCpf(initialData.cpf || '');
-      setIdade(initialData.idade || '');
-      setPeso(initialData.peso || '');
-      setAltura(initialData.altura || '');
-      setFerimentos(initialData.ferimentos || 'Nenhum');
-      setQuerSerVoluntario(initialData.querSerVoluntario || false);
-      setPossuiCondicao(initialData.possuiCondicao || false);
-      setOutraCondicaoTexto(initialData.doencas?.outraDescricao || '');
-      setHabilidades(initialData.habilidades || {});
-      setDoencas(initialData.doencas || {});
+    const carregarLocal = async () => {
+      const localSalvo = await AsyncStorage.getItem('localId');
+      if (!localSalvo) {
+        Alert.alert('Erro', 'Nenhum local cadastrado. Por favor, inicie pelo menu principal.');
+      }
+    };
+    carregarLocal();
+  }, []);
+
+  const handleSubmit = async () => {
+    try {
+      await login();
+
+      const localId = await AsyncStorage.getItem('localId');
+      const token = await AsyncStorage.getItem('token');
+
+      if (!localId || !token) {
+        Alert.alert('Erro', 'Local ou token não encontrado. Volte à tela inicial para cadastrar.');
+        return;
+      }
+
+      const abrigado = await criarAbrigado({
+        nome,
+        cpf,
+        idade: Number(idade),
+        peso: Number(peso),
+        altura: Number(altura),
+        ferimento: ferimentos,
+        localId,
+      });
+
+      if (querSerVoluntario) {
+        const habilidadeIds: string[] = [];
+        const mapa: Record<string, string> = {
+          prepararRefeicoes: '05fedf76-c9f6-4430-86a9-9cc600eeb872',
+          cuidadosMedicos: '45a4c73c-bd30-4d5c-a6f6-59bb58b3c893',
+          limpezaAmbientes: '47fedfa5-efd7-4f5c-81de-e2885cee34f8',
+          apoioEmocional: '5139576e-1356-4ea8-86f8-56e68a659e68',
+        };
+        Object.keys(habilidades).forEach((k) => {
+          if (habilidades[k] && mapa[k]) habilidadeIds.push(mapa[k]);
+        });
+
+        const res = await fetch(`https://apo-ia.azurewebsites.net/voluntario`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ abrigadoId: abrigado.id, habilidadeIds }),
+        });
+
+        const text = await res.text();
+        console.log('Resposta do servidor (voluntário):', text);
+        if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+      }
+
+      if (possuiCondicao) {
+        const condicoes: string[] = [];
+        Object.entries(doencas).forEach(([k, v]) => {
+          if (v && k !== 'outra') condicoes.push(k);
+        });
+
+        if (doencas.outra && outraCondicaoTexto.trim()) {
+          await criarDoenca({ nome: outraCondicaoTexto, gravidade: 'LEVE' });
+          condicoes.push(outraCondicaoTexto);
+        }
+
+        const res = await fetch(`https://apo-ia.azurewebsites.net/condicao`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ abrigadoId: abrigado.id, condicoes }),
+        });
+
+        const text = await res.text();
+        console.log('Resposta do servidor (condicoes):', text);
+        if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+      }
+
+      Alert.alert('Sucesso', 'Abrigado cadastrado com sucesso!');
+      onSave();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Erro', 'Não foi possível cadastrar.');
     }
-  }, [initialData]);
-
-  const handleSubmit = () => {
-    const dadosDoencas = possuiCondicao ? {
-      ...doencas,
-      outraDescricao: doencas.outra ? outraCondicaoTexto : ''
-    } : {};
-
-    onSave({
-      nome, cpf, idade, peso, altura, ferimentos,
-      querSerVoluntario,
-      habilidades: querSerVoluntario ? habilidades : {},
-      possuiCondicao,
-      doencas: dadosDoencas
-    });
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.titulo}>{modo === 'cadastro' ? 'Cadastro' : 'Editar Abrigado'}</Text>
-
-      <Text style={styles.label}>Nome completo:</Text>
+      <Text style={styles.label}>Nome completo</Text>
       <TextInput style={styles.input} value={nome} onChangeText={setNome} placeholder="Digite seu nome" />
 
-      <Text style={styles.label}>CPF:</Text>
+      <Text style={styles.label}>CPF</Text>
       <TextInput style={styles.input} value={cpf} onChangeText={setCpf} placeholder="Digite seu CPF" keyboardType="numeric" />
 
-      <Text style={styles.label}>Idade:</Text>
+      <Text style={styles.label}>Idade</Text>
       <TextInput style={styles.input} value={idade} onChangeText={setIdade} placeholder="Digite sua idade" keyboardType="numeric" />
 
-      <Text style={styles.label}>Peso (kg):</Text>
+      <Text style={styles.label}>Peso (kg)</Text>
       <TextInput style={styles.input} value={peso} onChangeText={setPeso} placeholder="Digite seu peso" keyboardType="numeric" />
 
-      <Text style={styles.label}>Altura (m):</Text>
+      <Text style={styles.label}>Altura (m)</Text>
       <TextInput style={styles.input} value={altura} onChangeText={setAltura} placeholder="Digite sua altura" keyboardType="numeric" />
 
-      <Text style={styles.label}>Ferimentos:</Text>
+      <Text style={styles.label}>Ferimentos</Text>
       <Picker selectedValue={ferimentos} onValueChange={setFerimentos} style={styles.input}>
         <Picker.Item label="Nenhum" value="Nenhum" />
         <Picker.Item label="Leves" value="Leves" />
@@ -96,16 +162,6 @@ export default function AbrigadoForm({ initialData, onSave, onDelete, modo }: Ab
           onPress={() => setQuerSerVoluntario(!querSerVoluntario)}
         />
         <Text style={styles.checkboxLabel}>Quero ser voluntário</Text>
-      </View>
-
-      <View style={styles.checkboxLinha}>
-        <Checkbox
-          status={possuiCondicao ? 'checked' : 'unchecked'}
-          onPress={() => setPossuiCondicao(!possuiCondicao)}
-        />
-        <Text style={styles.checkboxLabel}>
-          Possuo alguma condição médica que requer atenção especial
-        </Text>
       </View>
 
       {querSerVoluntario && (
@@ -134,6 +190,16 @@ export default function AbrigadoForm({ initialData, onSave, onDelete, modo }: Ab
         </>
       )}
 
+      <View style={styles.checkboxLinha}>
+        <Checkbox
+          status={possuiCondicao ? 'checked' : 'unchecked'}
+          onPress={() => setPossuiCondicao(!possuiCondicao)}
+        />
+        <Text style={styles.checkboxLabel}>
+          Possuo alguma condição médica que requer atenção especial
+        </Text>
+      </View>
+
       {possuiCondicao && (
         <>
           <Text style={styles.subtitulo}>🏥 Condições médicas específicas</Text>
@@ -160,7 +226,6 @@ export default function AbrigadoForm({ initialData, onSave, onDelete, modo }: Ab
       )}
 
       <Button title={modo === 'cadastro' ? 'Cadastrar' : 'Salvar'} onPress={handleSubmit} />
-      {modo === 'edicao' && onDelete && <Button title="Excluir" color="red" onPress={onDelete} />}
     </ScrollView>
   );
 }
@@ -171,21 +236,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flexGrow: 1,
   },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  subtitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 5,
-  },
   label: {
     fontSize: 16,
-    marginTop: 10,
     marginBottom: 5,
   },
   input: {
@@ -193,7 +245,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderRadius: 6,
     padding: 10,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   checkboxLinha: {
     flexDirection: 'row',
@@ -206,5 +258,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     flex: 1,
     paddingTop: 7,
+  },
+  subtitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 5,
   },
 });
